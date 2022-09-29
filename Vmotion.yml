@@ -1,0 +1,23 @@
+---
+ - name: Perform vMotion of virtual machine
+   hosts: localhost
+   vars:
+     ansible_python_interpreter: /usr/bin/python3
+   become: false
+   gather_facts: false
+   collections:
+    - comunity.vmware
+   tasks:
+    - include_vars: varsvmwareVmotion.yml
+
+    - name: Perform vMotion of virtual machine
+      vmware_vmotion:
+       hostname: "{{ vcenter_hostname }}"
+       vm_name: "{{ item }}"
+       username: "{{ vcenter_username }}"
+       password: "{{ vcenter_password }}"
+       validate_certs: "{{ vcenter_validate_certs }}"
+       #cluster_name: '{{ cluster_name }}'
+       destination_host: "{{ vcenter_destination_host }}"
+      loop: "{{ vm_name }}"
+      delegate_to: localhost 

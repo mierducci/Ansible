@@ -1,0 +1,99 @@
+---
+ - name: Configure correct VLAN on Esxi Hosts
+   hosts: localhost
+   vars:
+     ansible_python_interpreter: /usr/bin/python3
+   become: false
+   gather_facts: false
+   collections:
+    - comunity.vmware
+   tasks:
+    - include_vars: varsvmwarevSwitch1.yml
+
+
+    - name: Enter maintenance Mode
+      vmware_maintenancemode:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        esxi_hostname: "{{ vcenter_destination_host }}"
+        evacuate: no
+        state: present
+      #tags:
+       # - never
+
+    - name: Changue VLAN NFS-Management
+      local_action:
+        module: vmware_portgroup
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        switch_name: "vSwitch1"
+        portgroup_name: "NFS-Management"
+        hosts: "{{ vcenter_destination_host }}"
+        vlan_id: 511
+    
+    - name: Changue VLAN vMotion
+      local_action:
+        module: vmware_portgroup
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        switch_name: "vSwitch1"
+        portgroup_name: "vMotion"
+        hosts: "{{ vcenter_destination_host }}"
+        vlan_id: 511
+
+    - name: Reboot Host
+      community.vmware.vmware_host_powerstate:
+         hostname: "{{ vcenter_hostname }}"
+         username: "{{ vcenter_username }}"
+         password: "{{ vcenter_password }}"
+         #cluster_name: '{{ cluster_name }}'
+         esxi_hostname: "{{ vcenter_destination_host }}"
+         validate_certs: "{{ vcenter_validate_certs }}"
+         force: True
+         state: reboot-host
+      delegate_to: localhost
+      register: reboot_host
+      #tags:
+       # - never
+
+
+    - name: Sleep for 900 seconds waiting to ESXi host to reboot and continue with play
+      ansible.builtin.wait_for:
+         timeout: 900
+      delegate_to: localhost
+
+    - name: Rescan storage system objects
+      community.vmware.vmware_host_scanhba:
+        hostname: '{{ vcenter_hostname }}'
+        username: '{{ vcenter_username }}'
+        password: '{{ vcenter_password }}'
+        esxi_hostname: "{{ vcenter_destination_host }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        refresh_storage: true
+      delegate_to: localhost
+
+    - name: Exit maintenance Mode
+      vmware_maintenancemode:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        esxi_hostname: "{{ vcenter_destination_host }}"
+        state: absent
+
+    - name:  vMotion of virtual machines back to original Host
+      vmware_vmotion:
+       hostname: "{{ vcenter_hostname }}"
+       vm_name: "{{ item }}"
+       username: "{{ vcenter_username }}"
+       password: "{{ vcenter_password }}"
+       validate_certs: "{{ vcenter_validate_certs }}"
+       destination_host: "{{ vcenter_destination_host }}"
+      loop: "{{ vm_name }}"
+      delegate_to: localhost 

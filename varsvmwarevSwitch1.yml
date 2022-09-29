@@ -1,0 +1,11 @@
+---
+vcenter_hostname: "inv1503.nxdi.nl-cdc01.nxp.com"
+vcenter_datacenter: "US-CDC01-Cluster1"
+vcenter_validate_certs: false
+vcenter_username: "nxf89023@wbi.nxp.com"
+vcenter_password: ""
+vcenter_destination_host: "vic2006.nxdi.us-cdc01.nxp.com"
+vm_name: 
+  - "inv2307"
+  - "inv1625029073"
+  - "dmv0218"
